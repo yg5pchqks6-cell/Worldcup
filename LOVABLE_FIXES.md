@@ -110,3 +110,60 @@ Re-run the archived 2026-07-02 slate after Fixes 1-7:
 - MIL ML: p_final ≤ 64.5%, EV at 1.46 ≈ -6%, status PASS, no Best Play promotion.
 - MIA ML: p_final ≤ 58%, EV at 1.72 negative, PASS.
 - Slate output: "NO BETS TODAY", average |raw edge| < 5pp, zero picks with conf > 60.
+
+---
+
+## Fix 11 (P0) — Timeout cascade, RotoWire lineups, partial Pinnacle coverage
+
+> Three related fixes for the Daily Slate screen: the 504/timeout cascade, the
+> lineup source, and partial Pinnacle anchor coverage.
+>
+> CONTEXT (from production console logs): Page load fires ~26 parallel calls to
+> the mlb-stats edge function (action=lineup&teamId=X&date=...), which each hit
+> MLB's API upstream. They 504, SlateContext times out ("slate context timed
+> out — rendering without context"), and the app renders from a fallback that
+> discards data that DID load: console showed "fast pinnacle anchor coverage:
+> 9 games" while Slate Health rendered "0 Pinnacle · 0 of 13 games". Four games
+> failed analyse with HTTP 504 and fell back to client-side recompute. Pinnacle
+> posting lines late is NORMAL (bet365 posts full slates earlier) — partial
+> Pinnacle coverage must be handled per-game, never slate-wide.
+>
+> FIX A — RotoWire is the lineup source (this is what the Context URL field is
+> for): (1) New edge function action rotowire-lineups&date=YYYY-MM-DD fetching
+> https://www.rotowire.com/baseball/daily-lineups.php (today) or
+> ...daily-lineups.php?date=tomorrow server-side — ONE request replaces all 26
+> per-team MLB API calls; realistic User-Agent. (2) Parse every game box:
+> teams, game time, starting pitchers (name + handedness), 9 batting slots per
+> team (name, position, handedness), and the per-team "Confirmed Lineup" vs
+> "Expected/Projected Lineup" badge. (3) Cache in table rotowire_lineups
+> (key: date, TTL 10 min); serve stale on upstream failure; 8s upstream
+> timeout; on failure return HTTP 200 {status:"unavailable", cached:...} —
+> never 504. (4) Client makes exactly ONE lineups call per slate load; delete
+> the per-team fan-out; keep MLB statsapi only as fallback behind the same
+> cache. (5) Confirmed lineup = full weight; projected = uncertainty haircut +
+> "projected lineup" chip; respect the date param of a pasted RotoWire URL.
+>
+> FIX B — SlateContext progressive, not all-or-nothing: (1) Context value
+> { odds, anchors, lineups, bakedBlocks, status per resource }; each resource
+> commits the moment it resolves. (2) Delete the "rendering without context"
+> fallback; fast-anchor results write into the same store Slate Health reads.
+> (3) Max 4 concurrent edge calls, retry 5xx twice with backoff+jitter;
+> lineups/blocks never block first render. (4) Auto-retry failed bakes in the
+> background and re-render that card when the block arrives.
+>
+> FIX C — Partial Pinnacle coverage is normal: (1) Per-game anchor hierarchy:
+> pinnacle → consensus (de-vigged bet365, shrunk 1pp toward 50%) → none.
+> (2) Slate Health reports true coverage ("9 of 13 Pinnacle · 4 consensus"),
+> never 0-of-N when per-game anchors exist; remove the slate-wide "NO SHARP
+> ANCHOR" state for partial coverage. (3) Tiers per game: pinnacle = LOCK-
+> eligible, consensus = cap GOOD, none = auto-PASS; one uncovered game never
+> caps the rest. (4) Refresh Data + auto-refresh every 15 min re-runs ONLY the
+> anchor fetch and re-prices edges/tiers from existing sim results, logging
+> upgrades ("CIN@MIL anchor upgraded consensus → pinnacle").
+>
+> ACCEPTANCE: 13-game slate with MLB API delayed 30s → zero 504s, first render
+> < 3s, per-game anchors shown, Slate Health "9 of 13 Pinnacle · 4 consensus",
+> no "rendering without context" log. rotowire-lineups returns all games for
+> date=tomorrow with per-team confirmed/projected from one upstream fetch;
+> second call within 10 min served from cache. Killing the edge function
+> mid-load still renders cached lineups with a stale banner.

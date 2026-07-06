@@ -167,3 +167,29 @@ Re-run the archived 2026-07-02 slate after Fixes 1-7:
 > date=tomorrow with per-team confirmed/projected from one upstream fetch;
 > second call within 10 min served from cache. Killing the edge function
 > mid-load still renders cached lineups with a stale banner.
+
+---
+
+## Implementation log
+
+### Shipped 2026-07-07 (Lovable pass 3)
+- **Workstream A — pricing reframe**: `pricePctVsFair` per pick (replaces the
+  constant "+4.0pp" bug), GOOD/FAIR/POOR/UNPRICED badges (≥ −1.5% / to −3.5% /
+  below), POOR warns + halves ¼-Kelly stake but never vetoes, `ev > 0` filter
+  removed so confident plays surface at any price with an honest badge.
+  Files: consensus.ts, pickAxes.ts, MatchupTile.tsx, TonightsConfidentPlays.tsx,
+  matchupSynthesis.ts.
+- **B4 — luck classifier**: gap = xwOBA − wOBA, ±0.008 dead-zone, direction
+  fixed (positive gap = COLD_UNLUCKY/up), symmetric unit tests. Note: the KC
+  07-06 example (.324 vs .328) is |Δ|=.004 → NEUTRAL by rule; correct outcome.
+- **B5 — compounding risk**: High starter dependency + red SP flag (xERA gap
+  > 1.0, or location-split / recent-form once B1/B2 populate) → conf −15
+  stacked past the ±10 stability cap, reason in breakdown tooltip.
+
+### Pending (green-lit as next focused build)
+- **Golden-slate regression harness** (2026-07-02 + 2026-07-06 fixtures,
+  per-game before/after diff table, convergence assertion vs Pinnacle fair).
+- **B1** location-conditioned starter projection (Sánchez 0.86H/3.89R case).
+- **B2** symmetric recent-form term (±0.8 RA9 cap, 15% weight).
+- **B3** handedness-split offense (PHI .669 OPS vs LHP case).
+- Acceptance still open: 07-06 PHI@KC → PHI ~58-62%, conf ≤ 55 (gated on B1/B2).

@@ -193,3 +193,51 @@ Re-run the archived 2026-07-02 slate after Fixes 1-7:
 - **B2** symmetric recent-form term (±0.8 RA9 cap, 15% weight).
 - **B3** handedness-split offense (PHI .669 OPS vs LHP case).
 - Acceptance still open: 07-06 PHI@KC → PHI ~58-62%, conf ≤ 55 (gated on B1/B2).
+
+---
+
+## Fix 12 (P1) — Sharp context features (signal vs narrative)
+
+> GOVERNING PRINCIPLE: every dramatic baseball event has two readings — a
+> DURABLE STATE CHANGE (signal, predicts the next game) and a NARRATIVE
+> (fade, already happened / emotional / small-sample). The model ingests the
+> first and must NEVER add a boost for the second. A pulled perfect game =
+> bullpen now exposed (signal), not "team choked" (fade). A blown 99% lead =
+> pen is broken this week (signal), not "demoralized team" (fade).
+>
+> SIGNAL FEATURES TO ADD (ranked; each ships behind the golden-slate harness
+> and must shrink slate-avg |model − Pinnacle fair| or it is reverted):
+> 1. Rolling bullpen form (last 14d): pen ERA/HR-rate + blown-save% as a term
+>    separate from season effPen. Drives close-game ML down and late team
+>    totals under. Books lean on season pen numbers — this is the edge.
+> 2. High-leverage arm availability: from the freshness dots (HEAVY 3D). Top
+>    1-2 relievers gassed → widen that team's late-game run distribution.
+> 3. RA9 instead of ERA for run prevention + team defense (OAA/DRS). Unearned
+>    runs are real (Yankees: 15 of 43 runs unearned during the skid). Bad
+>    gloves add runs ERA/xERA can't see.
+> 4. Starter-exit → bullpen-exposure compounding: when the projection leans
+>    on the SP going deep AND the pen is weak, treat as ONE compounding risk
+>    (wider downside), not two independent ones.
+> 5. Starter injury/workload/fatigue flags: recent IL stint, heavy workload
+>    vs baseline, or "start pushed back / extra rest" news → downgrade the
+>    starter projection even if the season line is elite (Ohtani case).
+> 6. Recency-weighted, REGRESSED team form (last 30d, ~25% weight, regressed
+>    toward season) AND opponent-adjusted (a bad stretch vs elite opponents
+>    means less — Padres' collapse came vs Dodgers/Cubs).
+> 7. Catcher-pitcher pairing: starter ERA/xERA split by tonight's catcher
+>    (min sample); flag backup/personal-catcher starts (Ohtani 0.74 w/ Smith
+>    vs 4.34 w/ Rushing). Cheapest unique edge — absent from public models.
+> 8. Hot/cold hitter form + availability: key bat in/out of lineup and its
+>    regressed recent form. Cap hard — an 11-HR-in-11-games heater will not
+>    continue at that rate.
+>
+> FADE RULES (the model must NEVER add a positive adjustment for these):
+> revenge spots (ex-team, booing crowd); momentum from a dramatic
+> comeback/collapse; manager firing or ejection "spark"; new-manager
+> first-game bump; a single blowout's run margin; clubhouse drama. The public
+> overbets all of these, so if anything the value is the other way — but do
+> not code a contrarian boost either; just refuse to move the number.
+>
+> BUILD ORDER: harness first, then features 1→8, one commit each with the
+> before/after per-game diff table. Weather (wind at total-friendly parks)
+> and AL/NL league-strength adjustment are v2, lower priority.
